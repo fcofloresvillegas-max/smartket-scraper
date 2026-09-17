@@ -1,0 +1,30 @@
+name: Scraper nocturno de precios
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # ~03:00 hora de Chile (puede correr 1 hora antes o despues en horario de verano)
+  workflow_dispatch: {}    # permite correrlo a mano desde la pestaña "Actions" en GitHub
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+
+      - name: Correr el scraper para toda la canasta basica
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python run_nightly.py
