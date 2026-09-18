@@ -64,13 +64,21 @@ TIENDAS = {
     },
 }
 
+# Santa Isabel y Tottus parecen bloquear las IPs de datacenter de GitHub
+# Actions (funcionan perfecto desde una compu normal, pero fallan siempre
+# desde ahi). Hasta que encontremos una forma de sortear eso, el workflow
+# automatico de cada noche corre solo con las 3 tiendas que si funcionan
+# de forma confiable. Las otras dos siguen disponibles para correr a mano
+# con --tiendas santaisabel / --tiendas tottus.
+TIENDAS_AUTOMATICAS = ["jumbo", "lider", "acuenta"]
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Corre los scrapers de supermercados para toda la canasta basica")
     parser.add_argument("--limite", type=int, default=None, help="Solo procesar los primeros N terminos (para pruebas)")
     parser.add_argument(
-        "--tiendas", nargs="+", choices=list(TIENDAS.keys()), default=list(TIENDAS.keys()),
-        help="Que tiendas correr (por defecto todas)",
+        "--tiendas", nargs="+", choices=list(TIENDAS.keys()), default=TIENDAS_AUTOMATICAS,
+        help="Que tiendas correr (por defecto, solo las 3 confiables: jumbo lider acuenta)",
     )
     parser.add_argument("--pausa-min", type=float, default=4.0, help="Pausa minima entre productos, en segundos")
     parser.add_argument("--pausa-max", type=float, default=9.0, help="Pausa maxima entre productos, en segundos")
