@@ -28,6 +28,8 @@ import time
 from canasta_basica import CANASTA_BASICA
 import jumbo_scraper
 import lider_scraper
+import santaisabel_scraper
+import acuenta_scraper
 
 TIENDAS = {
     "jumbo": {
@@ -39,6 +41,16 @@ TIENDAS = {
         "nombre": "Lider",
         "scrape": lambda termino: lider_scraper.scrape(termino, pause=1.0),
         "subir": lider_scraper.subir_a_supabase,
+    },
+    "santaisabel": {
+        "nombre": "Santa Isabel",
+        "scrape": lambda termino: santaisabel_scraper.scrape(termino, max_pages=5, pause=1.2, headless=True),
+        "subir": santaisabel_scraper.subir_a_supabase,
+    },
+    "acuenta": {
+        "nombre": "A Cuenta",
+        "scrape": lambda termino: acuenta_scraper.scrape(termino, pause=1.0, max_pages=5, headless=True),
+        "subir": acuenta_scraper.subir_a_supabase,
     },
 }
 

@@ -172,9 +172,16 @@ def scrape(query: str, pause: float = 1.0, max_pages: int = 10, headless: bool =
             page.wait_for_selector('[data-testid="card-name"]', timeout=60000)
             dismiss_cookies(page)
             page.wait_for_timeout(int(max(pause, 1.0) * 1000))
-            total_pages_text = page.locator(".ant-pagination-simple-pager").inner_text() if page.locator(".ant-pagination-simple-pager").count() else "1/1"
-            match = re.search(r"/\s*(\d+)", total_pages_text)
-            total_pages = min(int(match.group(1)) if match else 1, max_pages)
+            total_pages = 1
+            try:
+                page.wait_for_selector(".ant-pagination", timeout=8000)
+                pagination_text = page.locator(".ant-pagination").first.inner_text()
+                numeros = re.findall(r"\d+", pagination_text)
+                if numeros:
+                    total_pages = int(numeros[-1])
+            except PlaywrightTimeoutError:
+                pass  # sin paginacion visible: se asume que solo hay una pagina
+            total_pages = min(total_pages, max_pages)
             selector = '[data-testid$="productCard"]:has([data-testid="card-name"])'
             for page_number in range(total_pages):
                 for card in page.locator(selector).all():
