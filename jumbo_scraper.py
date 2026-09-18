@@ -213,6 +213,28 @@ def dismiss_cookies(page) -> None:
             pass
 
 
+def dismiss_delivery_modal(page) -> None:
+    """Cencosud suele mostrar un modal de '¿Cómo recibirás tu compra?' en la
+    primera visita (sin cookies previas de una sesion anterior). Si bloquea
+    el contenido, lo cerramos sin elegir nada en particular - solo cerrar,
+    o omitir/seguir sin especificar direccion, para poder ver resultados.
+    """
+    for label in ("Omitir", "Ahora no", "Seguir sin dirección", "Continuar sin dirección", "Más tarde", "Cerrar"):
+        try:
+            button = page.get_by_role("button", name=re.compile(label, re.I)).first
+            if button.is_visible(timeout=800):
+                button.click(timeout=1500)
+                return
+        except Exception:
+            pass
+    try:
+        cerrar_x = page.locator('[aria-label="Cerrar" i], [aria-label="Close" i], button.close, .modal button[class*="close" i]').first
+        if cerrar_x.is_visible(timeout=800):
+            cerrar_x.click(timeout=1500)
+    except Exception:
+        pass
+
+
 def scrape(query: str, max_pages: int = 10, pause: float = 1.2, headless: bool = True) -> dict[str, Any]:
     encoded = quote_plus(query.strip())
     base_url = BASE_URL.format(query=encoded)
@@ -237,8 +259,15 @@ def scrape(query: str, max_pages: int = 10, pause: float = 1.2, headless: bool =
             for page_number in range(1, max_pages + 1):
                 page_url = base_url if page_number == 1 else f"{base_url}&page={page_number}"
                 page.goto(page_url, wait_until="domcontentloaded", timeout=60000)
-                page.wait_for_selector("[data-cnstrc-item-name]", timeout=60000)
+                dismiss_delivery_modal(page)
                 dismiss_cookies(page)
+                try:
+                    page.wait_for_selector("[data-cnstrc-item-name]", timeout=90000)
+                except PlaywrightTimeoutError:
+                    page.goto(page_url, wait_until="domcontentloaded", timeout=60000)
+                    dismiss_delivery_modal(page)
+                    dismiss_cookies(page)
+                    page.wait_for_selector("[data-cnstrc-item-name]", timeout=90000)
 
                 # Espera a que termine la carga dinámica de la página actual.
                 page.wait_for_timeout(int(max(pause, 0.5) * 1000))

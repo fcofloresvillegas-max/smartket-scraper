@@ -26,6 +26,8 @@ from typing import Any
 from urllib.parse import quote_plus, urljoin
 
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -42,14 +44,17 @@ def sin_tildes(texto: str) -> str:
 def check_robots_allowed(url: str, user_agent: str = "*") -> bool:
     """Revisa robots.txt de acuenta.cl antes de scrapear la URL dada.
 
-    Usa requests (via certifi) en vez de urllib.robotparser porque en
-    algunos Python de Windows el almacen de certificados por defecto de
-    urllib esta incompleto y falla la verificacion SSL en ciertos sitios.
+    acuenta.cl tiene un certificado con la cadena incompleta (falta el
+    intermedio) - los navegadores lo toleran encadenando automaticamente,
+    pero clientes como requests/urllib no. Como el scraper ya visita la
+    pagina real con ignore_https_errors=True (mismo nivel de confianza),
+    aplicamos ese mismo criterio acá para no bloquearnos a nosotros mismos
+    por un problema del propio sitio, no de seguridad de quien lo visita.
     """
     rp = urllib.robotparser.RobotFileParser()
     robots_url = urljoin(url, "/robots.txt")
     try:
-        resp = requests.get(robots_url, timeout=20)
+        resp = requests.get(robots_url, timeout=20, verify=False)
         resp.raise_for_status()
         rp.parse(resp.text.splitlines())
     except Exception as exc:
