@@ -54,11 +54,18 @@ def parse_weight_kg(name: str | None) -> float | None:
 
 
 def check_robots_allowed(url: str, user_agent: str = "*") -> bool:
-    """Revisa robots.txt de super.lider.cl antes de scrapear la URL dada."""
+    """Revisa robots.txt de super.lider.cl antes de scrapear la URL dada.
+
+    Usa requests (via certifi) en vez de urllib.robotparser solo, porque en
+    algunos Python de Windows el almacen de certificados por defecto de
+    urllib esta incompleto y falla la verificacion SSL en ciertos sitios.
+    """
     rp = urllib.robotparser.RobotFileParser()
-    rp.set_url(urljoin(url, "/robots.txt"))
+    robots_url = urljoin(url, "/robots.txt")
     try:
-        rp.read()
+        resp = requests.get(robots_url, timeout=20)
+        resp.raise_for_status()
+        rp.parse(resp.text.splitlines())
     except Exception as exc:
         print(f"[aviso] No se pudo leer robots.txt ({exc}); se aborta por precaucion.")
         return False

@@ -30,11 +30,13 @@ import os
 import re
 import sys
 import unicodedata
+import urllib.robotparser
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus, urljoin
 
+import requests
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
@@ -42,6 +44,25 @@ BASE_URL = "https://www.santaisabel.cl/busqueda?ft={query}&src=Sugerencia"
 PRICE_RE = re.compile(r"\$\s*([\d.]+)")
 WEIGHT_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|gr|gramos)\b", re.IGNORECASE)
 NOMBRE_SUPERMERCADO = "Santa Isabel"
+
+
+def check_robots_allowed(url: str, user_agent: str = "*") -> bool:
+    """Revisa robots.txt de santaisabel.cl antes de scrapear la URL dada.
+
+    Usa requests (via certifi) en vez de urllib.robotparser solo, porque en
+    algunos Python de Windows el almacen de certificados por defecto de
+    urllib esta incompleto y falla la verificacion SSL en ciertos sitios.
+    """
+    rp = urllib.robotparser.RobotFileParser()
+    robots_url = urljoin(url, "/robots.txt")
+    try:
+        resp = requests.get(robots_url, timeout=20)
+        resp.raise_for_status()
+        rp.parse(resp.text.splitlines())
+    except Exception as exc:
+        print(f"[aviso] No se pudo leer robots.txt ({exc}); se aborta por precaucion.")
+        return False
+    return rp.can_fetch(user_agent, url)
 
 
 def sin_tildes(texto: str) -> str:
@@ -195,6 +216,10 @@ def dismiss_cookies(page) -> None:
 def scrape(query: str, max_pages: int = 10, pause: float = 1.2, headless: bool = True) -> dict[str, Any]:
     encoded = quote_plus(query.strip())
     base_url = BASE_URL.format(query=encoded)
+
+    if not check_robots_allowed(base_url):
+        raise RuntimeError("robots.txt de santaisabel.cl no permite esta ruta.")
+
     extracted_at = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
     with sync_playwright() as playwright:
@@ -277,8 +302,6 @@ def subir_a_supabase(result: dict[str, Any]) -> int:
     Devuelve la cantidad de filas insertadas. Lanza un error claro si
     faltan las variables de entorno o si Supabase rechaza la solicitud.
     """
-    import requests  # import local: solo hace falta si se usa --supabase
-
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
