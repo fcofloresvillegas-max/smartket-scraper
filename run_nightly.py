@@ -11,7 +11,7 @@ Uso:
     python run_nightly.py
     python run_nightly.py --limite 5              (solo los primeros 5 terminos)
     python run_nightly.py --tiendas jumbo          (solo Jumbo)
-    python run_nightly.py --tiendas lider          (solo Lider)
+    python run_nightly.py --tiendas santaisabel tottus --visible   (a mano, con navegador visible)
 
 Requiere las mismas variables de entorno que los scrapers --supabase:
     SUPABASE_URL
@@ -35,31 +35,35 @@ import tottus_scraper
 TIENDAS = {
     "jumbo": {
         "nombre": "Jumbo",
-        "scrape": lambda termino: jumbo_scraper.scrape(termino, max_pages=5, pause=1.2, headless=True),
+        "scrape": lambda termino, headless: jumbo_scraper.scrape(termino, max_pages=5, pause=1.2, headless=headless),
         "subir": jumbo_scraper.subir_a_supabase,
     },
     "lider": {
         "nombre": "Lider",
-        "scrape": lambda termino: lider_scraper.scrape(termino, pause=1.0),
+        "scrape": lambda termino, headless: lider_scraper.scrape(termino, pause=1.0),
         "subir": lider_scraper.subir_a_supabase,
     },
     "santaisabel": {
         "nombre": "Santa Isabel",
-        "scrape": lambda termino: santaisabel_scraper.scrape(termino, max_pages=5, pause=1.2, headless=True),
+        "scrape": lambda termino, headless: santaisabel_scraper.scrape(termino, max_pages=5, pause=1.2, headless=headless),
         "subir": santaisabel_scraper.subir_a_supabase,
     },
     "acuenta": {
         "nombre": "A Cuenta",
-        "scrape": lambda termino: acuenta_scraper.scrape(termino, pause=1.0, max_pages=5, headless=True),
+        "scrape": lambda termino, headless: acuenta_scraper.scrape(termino, pause=1.0, max_pages=5, headless=headless),
         "subir": acuenta_scraper.subir_a_supabase,
     },
     "tottus": {
         "nombre": "Tottus",
         # Solo la primera pagina, ordenada por precio ascendente: menos
         # requests, menos chance de gatillar el desafio de Cloudflare.
-        # Si igual aparece el desafio, falla rapido (15s) en vez de esperar
-        # 180s a que alguien lo resuelva - de noche no hay nadie mirando.
-        "scrape": lambda termino: tottus_scraper.scrape(termino, max_pages=1, pause=1.0, headless=True, cloudflare_timeout=15),
+        # Con --visible (alguien mirando) espera 180s por si hay que marcar
+        # la casilla a mano; sin --visible (automatico, nadie mirando)
+        # falla rapido en 15s en vez de esperar en vano.
+        "scrape": lambda termino, headless: tottus_scraper.scrape(
+            termino, max_pages=1, pause=1.0, headless=headless,
+            cloudflare_timeout=(15 if headless else 180),
+        ),
         "subir": tottus_scraper.subir_a_supabase,
     },
 }
@@ -82,10 +86,15 @@ def main() -> int:
     )
     parser.add_argument("--pausa-min", type=float, default=4.0, help="Pausa minima entre productos, en segundos")
     parser.add_argument("--pausa-max", type=float, default=9.0, help="Pausa maxima entre productos, en segundos")
+    parser.add_argument(
+        "--visible", action="store_true",
+        help="Muestra el navegador (para poder resolver un check de Cloudflare a mano, por ejemplo)",
+    )
     args = parser.parse_args()
 
     terminos = CANASTA_BASICA[: args.limite] if args.limite else CANASTA_BASICA
     tiendas_activas = [TIENDAS[t] for t in args.tiendas]
+    headless = not args.visible
 
     exitos = 0
     intentos = 0
@@ -98,7 +107,7 @@ def main() -> int:
         for tienda in tiendas_activas:
             intentos += 1
             try:
-                resultado = tienda["scrape"](termino)
+                resultado = tienda["scrape"](termino, headless)
                 insertados = tienda["subir"](resultado)
                 print(f"  {tienda['nombre']}: {resultado['cantidad_productos']} productos, {insertados} subidas.")
                 exitos += 1
