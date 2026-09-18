@@ -30,6 +30,7 @@ import jumbo_scraper
 import lider_scraper
 import santaisabel_scraper
 import acuenta_scraper
+import tottus_scraper
 
 TIENDAS = {
     "jumbo": {
@@ -51,6 +52,15 @@ TIENDAS = {
         "nombre": "A Cuenta",
         "scrape": lambda termino: acuenta_scraper.scrape(termino, pause=1.0, max_pages=5, headless=True),
         "subir": acuenta_scraper.subir_a_supabase,
+    },
+    "tottus": {
+        "nombre": "Tottus",
+        # Solo la primera pagina, ordenada por precio ascendente: menos
+        # requests, menos chance de gatillar el desafio de Cloudflare.
+        # Si igual aparece el desafio, falla rapido (15s) en vez de esperar
+        # 180s a que alguien lo resuelva - de noche no hay nadie mirando.
+        "scrape": lambda termino: tottus_scraper.scrape(termino, max_pages=1, pause=1.0, headless=True, cloudflare_timeout=15),
+        "subir": tottus_scraper.subir_a_supabase,
     },
 }
 
