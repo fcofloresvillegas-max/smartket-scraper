@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Extrae productos y precios de búsquedas públicas de Jumbo.cl.
+"""Extrae productos y precios de búsquedas públicas de Santa Isabel.
 
 Uso:
-    python jumbo_scraper.py arroz
-    python jumbo_scraper.py arroz --max-pages 3 --output-dir datos
-    python jumbo_scraper.py arroz --supabase   (ademas sube los resultados a Supabase)
+    python santaisabel_scraper.py arroz
+    python santaisabel_scraper.py arroz --max-pages 3 --output-dir datos
+    python santaisabel_scraper.py arroz --supabase   (ademas sube los resultados a Supabase)
 
 Requisitos:
     pip install playwright requests
@@ -38,10 +38,10 @@ from urllib.parse import quote_plus, urljoin
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "https://www.jumbo.cl/busqueda?ft={query}&src=Sugerencia"
+BASE_URL = "https://www.santaisabel.cl/busqueda?ft={query}&src=Sugerencia"
 PRICE_RE = re.compile(r"\$\s*([\d.]+)")
 WEIGHT_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|gr|gramos)\b", re.IGNORECASE)
-NOMBRE_SUPERMERCADO = "Jumbo"
+NOMBRE_SUPERMERCADO = "Santa Isabel"
 
 
 def sin_tildes(texto: str) -> str:
@@ -89,7 +89,7 @@ def extract_brand(card, metadata: dict[str, Any], nombre: str | None) -> str | N
     meta_brand = clean_text(str(metadata.get("brand"))) if metadata.get("brand") else None
     if meta_brand and len(meta_brand) < 40 and "$" not in meta_brand and meta_brand.lower() not in {"agregar", "oferta"}:
         return meta_brand
-    # Fallback: Jumbo suele mostrar la marca como un enlace antes del título.
+    # Fallback: Santa Isabel suele mostrar la marca como un enlace antes del título.
     # El texto accesible de ese enlace a veces viene como "Marca <nombre completo>"
     # (la marca pegada al nombre entero del producto), asi que si el candidato
     # termina exactamente en el nombre, nos quedamos solo con lo que sobra antes.
@@ -205,7 +205,7 @@ def scrape(query: str, max_pages: int = 10, pause: float = 1.2, headless: bool =
             seen: set[str] = set()
             query_palabras = [w for w in sin_tildes(query.strip().lower()).split() if w]
 
-            # Jumbo muestra normalmente 40 productos en page=1 y el resto en
+            # Santa Isabel muestra normalmente 40 productos en page=1 y el resto en
             # page=2. El botón visual "Siguiente" puede cambiar el contenido
             # sin cambiar page.url, por eso navegamos directamente con el
             # parámetro page y no dependemos de detectar el cambio de URL.
@@ -243,7 +243,7 @@ def scrape(query: str, max_pages: int = 10, pause: float = 1.2, headless: bool =
 
     products.sort(key=lambda p: (p["precio_unitario"] is None, p["precio_unitario"] or 0, p["nombre"]))
     return {
-        "fuente": "jumbo.cl",
+        "fuente": "santaisabel.cl",
         "url_consultada": base_url,
         "termino_busqueda": query,
         "fecha_consulta": extracted_at,
@@ -255,8 +255,8 @@ def scrape(query: str, max_pages: int = 10, pause: float = 1.2, headless: bool =
 def save_outputs(result: dict[str, Any], output_dir: Path) -> tuple[Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     slug = re.sub(r"[^a-zA-Z0-9_-]+", "_", result["termino_busqueda"].strip()).strip("_") or "busqueda"
-    json_path = output_dir / f"jumbo_{slug}.json"
-    csv_path = output_dir / f"jumbo_{slug}.csv"
+    json_path = output_dir / f"santaisabel_{slug}.json"
+    csv_path = output_dir / f"santaisabel_{slug}.csv"
     json_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 
     fields = [
@@ -310,7 +310,7 @@ def subir_a_supabase(result: dict[str, Any]) -> int:
         crear = requests.post(
             f"{url}/rest/v1/supermercados",
             headers={**headers, "Prefer": "return=representation"},
-            json={"nombre": NOMBRE_SUPERMERCADO, "sitio_web": "https://www.jumbo.cl"},
+            json={"nombre": NOMBRE_SUPERMERCADO, "sitio_web": "https://www.santaisabel.cl"},
             timeout=30,
         )
         crear.raise_for_status()
@@ -357,7 +357,7 @@ def subir_a_supabase(result: dict[str, Any]) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Extrae productos y precios públicos de Jumbo.cl")
+    parser = argparse.ArgumentParser(description="Extrae productos y precios públicos de Santa Isabel")
     parser.add_argument("query", help="Término de búsqueda, por ejemplo: arroz")
     parser.add_argument("--max-pages", type=int, default=10, help="Máximo de páginas a recorrer")
     parser.add_argument("--pause", type=float, default=1.2, help="Pausa entre cargas, en segundos")
