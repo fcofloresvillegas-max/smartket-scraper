@@ -29,6 +29,7 @@ import json
 import os
 import re
 import sys
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,12 @@ BASE_URL = "https://www.jumbo.cl/busqueda?ft={query}&src=Sugerencia"
 PRICE_RE = re.compile(r"\$\s*([\d.]+)")
 WEIGHT_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(kg|kilos?|g|gr|gramos)\b", re.IGNORECASE)
 NOMBRE_SUPERMERCADO = "Jumbo"
+
+
+def sin_tildes(texto: str) -> str:
+    """Quita tildes para comparar texto sin que 'cafe' != 'café' cause problemas."""
+    normalizado = unicodedata.normalize("NFKD", texto)
+    return "".join(c for c in normalizado if not unicodedata.combining(c))
 
 
 def parse_weight_kg(name: str | None) -> float | None:
@@ -123,7 +130,8 @@ def extract_card(card, base_url: str) -> dict[str, Any] | None:
     # de una unidad. Si tenemos precio por kg y el peso viene en el nombre,
     # usamos eso para detectar y corregir esos casos.
     weight_kg = parse_weight_kg(name)
-    if unit_price and weight_kg:
+    unidad_es_por_kg = bool(unit_text) and "kg" in unit_text.lower()
+    if unit_price and weight_kg and unidad_es_por_kg:
         expected = unit_price * weight_kg
         if current and expected > 0 and current / expected >= 1.8:
             current = round(expected)
@@ -189,6 +197,7 @@ def scrape(query: str, max_pages: int = 10, pause: float = 1.2, headless: bool =
         try:
             products: list[dict[str, Any]] = []
             seen: set[str] = set()
+            query_palabras = [w for w in sin_tildes(query.strip().lower()).split() if w]
 
             # Jumbo muestra normalmente 40 productos en page=1 y el resto en
             # page=2. El botón visual "Siguiente" puede cambiar el contenido
@@ -210,6 +219,9 @@ def scrape(query: str, max_pages: int = 10, pause: float = 1.2, headless: bool =
                 for card in cards.all():
                     item = extract_card(card, page.url)
                     if not item:
+                        continue
+                    nombre_norm = sin_tildes((item["nombre"] or "").lower())
+                    if query_palabras and not all(p in nombre_norm for p in query_palabras):
                         continue
                     key = item["url_producto"] or f'{item["nombre"]}|{item["precio_actual"]}'
                     if key in seen:
@@ -378,3 +390,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
