@@ -31,6 +31,12 @@ import lider_scraper
 import santaisabel_scraper
 import acuenta_scraper
 import tottus_scraper
+import colun_scraper
+
+# Colun solo vende sus propios lacteos - no tiene sentido buscarle arroz,
+# carnes o verduras. Se restringe a los terminos de la canasta donde
+# realmente puede aparecer.
+TERMINOS_COLUN = {"leche entera", "leche en polvo", "yogurt", "queso gouda", "quesillo", "queso crema", "mantequilla con sal"}
 
 TIENDAS = {
     "jumbo": {
@@ -66,6 +72,14 @@ TIENDAS = {
         ),
         "subir": tottus_scraper.subir_a_supabase,
     },
+    "colun": {
+        "nombre": "Colun",
+        # No usa navegador (lee el sitemap + fichas via requests), asi que
+        # "headless" no aplica aca - se ignora.
+        "scrape": lambda termino, headless: colun_scraper.scrape(termino, pause=1.2, max_products=60, session=colun_scraper.get_session()),
+        "subir": colun_scraper.subir_a_supabase,
+        "terminos_permitidos": TERMINOS_COLUN,
+    },
 }
 
 # Santa Isabel y Tottus parecen bloquear las IPs de datacenter de GitHub
@@ -74,7 +88,7 @@ TIENDAS = {
 # automatico de cada noche corre solo con las 3 tiendas que si funcionan
 # de forma confiable. Las otras dos siguen disponibles para correr a mano
 # con --tiendas santaisabel / --tiendas tottus.
-TIENDAS_AUTOMATICAS = ["jumbo", "lider", "acuenta"]
+TIENDAS_AUTOMATICAS = ["jumbo", "lider", "acuenta", "colun"]
 
 
 def main() -> int:
@@ -105,6 +119,9 @@ def main() -> int:
         print(f"\n[{i}/{len(terminos)}] {termino} ({item['nombre_ine']})")
 
         for tienda in tiendas_activas:
+            permitidos = tienda.get("terminos_permitidos")
+            if permitidos is not None and termino not in permitidos:
+                continue
             intentos += 1
             try:
                 resultado = tienda["scrape"](termino, headless)
