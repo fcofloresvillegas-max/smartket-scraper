@@ -32,6 +32,7 @@ import santaisabel_scraper
 import acuenta_scraper
 import tottus_scraper
 import colun_scraper
+import super10_scraper
 
 # Colun solo vende sus propios lacteos - no tiene sentido buscarle arroz,
 # carnes o verduras. Se restringe a los terminos de la canasta donde
@@ -80,6 +81,14 @@ TIENDAS = {
         "subir": colun_scraper.subir_a_supabase,
         "terminos_permitidos": TERMINOS_COLUN,
     },
+    "super10": {
+        "nombre": "Super 10",
+        # Lee todas las ofertas de la semana UNA sola vez (con cache interno
+        # en el propio modulo) y despues solo filtra en memoria por cada
+        # termino - no hace un request nuevo por producto.
+        "scrape": lambda termino, headless: super10_scraper.scrape(termino),
+        "subir": super10_scraper.subir_a_supabase,
+    },
 }
 
 # Santa Isabel y Tottus parecen bloquear las IPs de datacenter de GitHub
@@ -88,7 +97,7 @@ TIENDAS = {
 # automatico de cada noche corre solo con las 3 tiendas que si funcionan
 # de forma confiable. Las otras dos siguen disponibles para correr a mano
 # con --tiendas santaisabel / --tiendas tottus.
-TIENDAS_AUTOMATICAS = ["jumbo", "lider", "acuenta", "colun"]
+TIENDAS_AUTOMATICAS = ["jumbo", "lider", "acuenta", "colun", "super10"]
 
 
 def main() -> int:
