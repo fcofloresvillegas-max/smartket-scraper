@@ -33,6 +33,7 @@ import acuenta_scraper
 import tottus_scraper
 import colun_scraper
 import super10_scraper
+import unimarc_scraper
 
 # Colun solo vende sus propios lacteos - no tiene sentido buscarle arroz,
 # carnes o verduras. Se restringe a los terminos de la canasta donde
@@ -88,6 +89,15 @@ TIENDAS = {
         # termino - no hace un request nuevo por producto.
         "scrape": lambda termino, headless: super10_scraper.scrape(termino),
         "subir": super10_scraper.subir_a_supabase,
+    },
+    "unimarc": {
+        "nombre": "Unimarc",
+        # Siempre con navegador visible (headless se ignora): si Unimarc
+        # muestra un CAPTCHA/Akamai, el script se detiene y pide presionar
+        # Enter en la consola despues de resolverlo a mano. No apto para
+        # correr sin nadie mirando - por eso nunca va en el automatico.
+        "scrape": lambda termino, headless: unimarc_scraper.scrape(termino, wait_seconds=180, pause=2.0),
+        "subir": unimarc_scraper.subir_a_supabase,
     },
 }
 
