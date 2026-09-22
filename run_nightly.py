@@ -34,6 +34,7 @@ import tottus_scraper
 import colun_scraper
 import super10_scraper
 import unimarc_scraper
+import provimarket_scraper
 
 # Colun solo vende sus propios lacteos - no tiene sentido buscarle arroz,
 # carnes o verduras. Se restringe a los terminos de la canasta donde
@@ -98,6 +99,14 @@ TIENDAS = {
         # correr sin nadie mirando - por eso nunca va en el automatico.
         "scrape": lambda termino, headless: unimarc_scraper.scrape(termino, wait_seconds=180, pause=2.0),
         "subir": unimarc_scraper.subir_a_supabase,
+    },
+    "provimarket": {
+        "nombre": "Provimarket",
+        # Candidatos heuristicos (nombre/precio adivinados por posicion en
+        # un PDF de revista, no datos estructurados como los demas). Se
+        # queda manual a proposito - conviene revisar antes de subir.
+        "scrape": lambda termino, headless: provimarket_scraper.scrape(termino),
+        "subir": provimarket_scraper.subir_a_supabase,
     },
 }
 
