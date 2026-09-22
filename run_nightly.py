@@ -116,7 +116,7 @@ TIENDAS = {
 # automatico de cada noche corre solo con las 3 tiendas que si funcionan
 # de forma confiable. Las otras dos siguen disponibles para correr a mano
 # con --tiendas santaisabel / --tiendas tottus.
-TIENDAS_AUTOMATICAS = ["jumbo", "lider", "acuenta", "colun", "super10"]
+TIENDAS_AUTOMATICAS = ["jumbo", "lider", "acuenta", "colun", "super10", "provimarket"]
 
 
 def main() -> int:
